@@ -23,7 +23,8 @@ async def main() -> None:
     config: Config = load_config()
 
     bot = Bot(token = config.tg_bot.token,
-              default = DefaultBotProperties(parse_mode=ParseMode.HTML))
+              default = DefaultBotProperties(parse_mode=ParseMode.HTML,
+                                             link_preview_is_disabled=True))
     dp = Dispatcher()
 
     await setup_main_menu(bot)
