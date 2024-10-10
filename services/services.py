@@ -25,7 +25,8 @@ def get_request(id: int, loc: str) -> str:
     if updates:
         ret: str = (
             f'Temperature - {updates['timelines']['minutely'][0]['values']['temperature']}°C\n'
-            f'Apparent Temperature - {updates['timelines']['minutely'][0]['values']['temperatureApparent']}°C\n'
+            f'Apparent temperature - {updates['timelines']['minutely'][0]['values']['temperatureApparent']}°C\n'
+            f'Atmospheric pressure - {float(updates['timelines']['minutely'][0]['values']['pressureSurfaceLevel'] * 0.75006):.2f} mmHg\n'
             f'Wind speed - {updates['timelines']['minutely'][0]['values']['windSpeed']} km\\h\n'
             f'Precipitation probability - {updates['timelines']['minutely'][0]['values']['precipitationProbability']}%\n'
         )

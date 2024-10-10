@@ -15,7 +15,8 @@ class Lexicon_info:
                  'or add <b>up to 5 locations</b> to view\n\n'
                  'Also you can get a weather report up to 6 days ahead, '
                  'and if you ask me how i do it — it\'s just a <a href="https://app.tomorrow.io/home">Magic</a>\n\n'
-                 'To see the list of avaliable commands and read about: /help',
+                 'To manage locations: /locations\n'
+                 'Or if you want to see the list of avaliable commands and read about: /help',
         'locations': 'This is a list of your locations',
         'addlocation':  'If You want to share your location use button <b>Share location</b>\n\n'
                         'Either way еnter coordinates in WGS-84 longitude-latitude format without using minute and second designations.\n\n'

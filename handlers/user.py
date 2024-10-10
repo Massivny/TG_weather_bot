@@ -8,13 +8,15 @@ from aiogram.filters import Command, StateFilter, or_f, invert_f, and_f
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
 from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
+from sqlalchemy.ext.asyncio.engine import AsyncEngine
+from sqlalchemy.dialects.postgresql import insert
 
 from states.states import FSMAddLocation
 from lexicon.lexicon import Lexicon_info, Lexicon_cmd_main_menu
 from keyboards.keyboard import kb_loc, create_edit_keyboard, create_locations_keyboard
 from filters.filters import CoordFilter, DelLocationFilter, LocationFilter
 from services.services import get_coords, get_request
-from database.models import users_db, users_loc_template
+from database.models import users_db, users_loc_template, users
 
 user_rout = Router()
 
@@ -23,35 +25,36 @@ user_rout = Router()
 ############################################################################################################################################### 
 
 @user_rout.message(Command('start'))
-async def start_cmd(msg: Message):
+async def start_cmd(msg: Message, db_engine: AsyncEngine):
     await msg.answer(text = Lexicon_info.Commands['start'])
     if msg.from_user.id not in users_db:
+        stmt = insert(users).values(
+            telegram_id = msg.from_user.id,
+            first_name = msg.from_user.first_name,
+            last_name = msg.from_user.last_name
+        )
+
+        update_stmt = stmt.on_conflict_do_update(
+            index_elements=['telegram_id'],
+            set_={
+                'first_name': msg.from_user.first_name,
+                'last_name': msg.from_user.last_name
+            }
+        )
+
+        async with db_engine.connect() as conn:
+            await conn.execute(update_stmt)
+            await conn.commit()
+
         users_db[msg.from_user.id] = deepcopy(users_loc_template)
 
 @user_rout.message(Command('locations'))
 async def loc_cmd(msg: Message):
-    #if users_db[msg.from_user.id]:
-        await msg.answer(text=Lexicon_info.Commands['locations'],
-                         reply_markup=create_locations_keyboard(
-                                      *users_db[msg.from_user.id]
-                         )
-        )   
-    #else:
-    #    await msg.answer(text = Lexicon_info.Commands['no_locations'])
-'''
-@user_rout.message(Command('addlocation'))
-async def setlocation_cmd(msg: Message, state: FSMContext):
-    if len(users_db[msg.from_user.id]) < 5:
-        await state.set_state(FSMAddLocation.name)
-        await msg.answer('Send location\'s name')
-    else:
-        #Inline keyboard to edit bookmarks
-        await msg.answer(text=Lexicon_info.Commands['outofloc'],
-                         reply_markup=create_edit_keyboard(
-                             *users_db[msg.from_user.id]
-                         )
-        )
-'''
+    await msg.answer(text=Lexicon_info.Commands['locations'],
+                     reply_markup=create_locations_keyboard(
+                                  *users_db[msg.from_user.id]
+                     )
+    )   
 
 @user_rout.message(Command('getforecast'))
 async def getforecast_cmd(msg: Message):
@@ -82,10 +85,11 @@ async def add_coord_proc(msg: Message, state: FSMContext):
     data = await state.get_data()
     loc_name = data.get('location_name')
     users_db[msg.from_user.id][loc_name] = coord
-    #print(users_db)
+
     await state.clear()
     await msg.answer(text=f'Location {loc_name} has been added!',
                      reply_markup=ReplyKeyboardRemove())
+    
     await msg.answer(text=Lexicon_info.Commands['locations'],
                         reply_markup = create_locations_keyboard(
                                          *users_db[msg.from_user.id])
@@ -102,7 +106,6 @@ async def cb_add_loc(callback: CallbackQuery, state: FSMContext):
         await state.set_state(FSMAddLocation.name)
         await callback.message.answer('Send location\'s name')
     else:
-        #Inline keyboard to edit bookmarks
         await callback.message.answer(text=Lexicon_info.Commands['outofloc'],
                          reply_markup=create_edit_keyboard(
                              *users_db[callback.from_user.id]
@@ -128,26 +131,23 @@ async def cb_back(callback: CallbackQuery):
     await callback.message.edit_text(text = Lexicon_info.Commands['locations'],
                                      reply_markup=create_locations_keyboard(
                                          *users_db[callback.from_user.id]
-                                     )) 
+                                     )
+    ) 
     await callback.answer()
 
 @user_rout.callback_query(DelLocationFilter())
 async def cb_remove_loc(callback: CallbackQuery):
     if callback.data[:-3] in users_db[callback.from_user.id]:
         del users_db[callback.from_user.id][callback.data[:-3]]
-    #if users_db[callback.from_user.id]:
     await callback.message.edit_text(
           text = Lexicon_info.Commands['edit_locations'],
           reply_markup = create_edit_keyboard(
                 *users_db[callback.from_user.id]
           )
     )
-    #else:
-    #    await callback.message.edit_text(Lexicon_info.Commands['no_locations'])
 
 @user_rout.callback_query(LocationFilter())
 async def cb_loc_proc(callback: CallbackQuery):
-    #await callback.message.delete()
     try: 
         await callback.message.edit_text(
             text=get_request(callback.from_user.id, callback.data),

@@ -5,14 +5,19 @@ from environs import Env
 class TgBot():
     token: str
 
-
+@dataclass
+class Database():
+    dsn: str
 
 @dataclass
 class Config():
     tg_bot: TgBot
-   #db: 
+    db: Database 
 
 def load_config(path: str | None = None) -> Config:
     env = Env()
     env.read_env(path)
-    return Config(tg_bot=TgBot(token=env('BOT_TOKEN')))
+    return Config(
+        tg_bot=TgBot(token=env('BOT_TOKEN')),
+        db=Database(dsn=env('PG_LINK'))
+    )
